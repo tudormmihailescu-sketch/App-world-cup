@@ -13,8 +13,9 @@ export default function JoinForm({
     <section className="card p-6">
       <h1 className="text-xl font-bold">Join “{competitionName}”</h1>
       <p className="mt-1 text-sm text-slate-500">
-        Pick a display name to start predicting. We’ll remember you on this
-        device.
+        Pick a display name to start predicting — we’ll remember you on this
+        device. <strong>Been here before?</strong> Enter the same name to pick
+        up your existing predictions.
       </p>
       <form action={joinAsPlayer} className="mt-4 flex gap-3">
         <input type="hidden" name="code" value={code} />

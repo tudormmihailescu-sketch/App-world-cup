@@ -21,19 +21,18 @@ export async function joinAsPlayer(formData: FormData) {
     redirect(`${competitionPath(code)}?error=` + encodeURIComponent("Enter a name."));
   }
 
-  const existing = await prisma.player.findUnique({
-    where: { competitionId_name: { competitionId: competition!.id, name } },
-  });
-  if (existing) {
-    redirect(
-      `${competitionPath(code)}?error=` +
-        encodeURIComponent(`"${name}" is taken in this competition.`),
-    );
-  }
+  // Your name is your identity in this (no-password) competition. If a player
+  // with this name already exists, resume it — this lets you get back to your
+  // picks from any device or URL, even if the remembering-cookie was lost.
+  // Otherwise create a new player.
+  const player =
+    (await prisma.player.findUnique({
+      where: { competitionId_name: { competitionId: competition!.id, name } },
+    })) ??
+    (await prisma.player.create({
+      data: { competitionId: competition!.id, name },
+    }));
 
-  const player = await prisma.player.create({
-    data: { competitionId: competition!.id, name },
-  });
   setPlayerCookie(competition!.id, player.sessionToken);
   revalidatePath(competitionPath(code));
   redirect(competitionPath(code));
