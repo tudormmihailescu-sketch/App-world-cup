@@ -21,8 +21,13 @@ export interface NormalizedMatch {
   awayCrest: string | null;
   kickoff: Date;
   status: "SCHEDULED" | "IN_PLAY" | "FINISHED";
+  // Score after 90 minutes (used for exact-score and goal-difference points).
   homeScore: number | null;
   awayScore: number | null;
+  // Final score incl. extra time / penalties (for display).
+  finalHomeScore: number | null;
+  finalAwayScore: number | null;
+  decidedBy: "REGULAR" | "EXTRA_TIME" | "PENALTIES" | null;
   qualifier: Side | null;
 }
 
@@ -61,7 +66,9 @@ function mapQualifier(winner: string | null | undefined): Side | null {
   return null;
 }
 
-interface RawMatch {
+type ScorePair = { home: number | null; away: number | null } | null;
+
+export interface RawMatch {
   id: number;
   utcDate: string;
   status: string;
@@ -70,7 +77,52 @@ interface RawMatch {
   awayTeam: { name: string | null; crest: string | null } | null;
   score: {
     winner: string | null;
-    fullTime: { home: number | null; away: number | null };
+    duration?: string | null;
+    fullTime: ScorePair;
+    regularTime?: ScorePair;
+  };
+}
+
+function mapDecidedBy(duration: string | null | undefined): NormalizedMatch["decidedBy"] {
+  switch (duration) {
+    case "PENALTY_SHOOTOUT":
+      return "PENALTIES";
+    case "EXTRA_TIME":
+      return "EXTRA_TIME";
+    case "REGULAR":
+      return "REGULAR";
+    default:
+      return null;
+  }
+}
+
+/**
+ * Convert one raw football-data match into our normalized shape.
+ *
+ * The 90-minute score comes from `score.regularTime` when present (i.e. when a
+ * match went to extra time / penalties) and otherwise from `score.fullTime`
+ * (which, for a match decided in normal time, *is* the 90-minute score). The
+ * final score for display always comes from `score.fullTime`.
+ */
+export function normalizeMatch(m: RawMatch): NormalizedMatch {
+  const regular = m.score?.regularTime;
+  const full = m.score?.fullTime;
+  return {
+    externalId: String(m.id),
+    stage: m.stage,
+    isKnockout: m.stage !== "GROUP_STAGE",
+    homeTeam: m.homeTeam?.name ?? "TBD",
+    awayTeam: m.awayTeam?.name ?? "TBD",
+    homeCrest: m.homeTeam?.crest ?? null,
+    awayCrest: m.awayTeam?.crest ?? null,
+    kickoff: new Date(m.utcDate),
+    status: mapStatus(m.status),
+    homeScore: regular?.home ?? full?.home ?? null,
+    awayScore: regular?.away ?? full?.away ?? null,
+    finalHomeScore: full?.home ?? null,
+    finalAwayScore: full?.away ?? null,
+    decidedBy: mapDecidedBy(m.score?.duration),
+    qualifier: mapQualifier(m.score?.winner),
   };
 }
 
@@ -79,7 +131,10 @@ interface RawMatch {
  * stage. Throws a descriptive Error on misconfiguration or HTTP failure so the
  * admin UI can surface it.
  */
-export async function fetchMatches(stage?: string): Promise<NormalizedMatch[]> {
+export async function fetchMatches(
+  stage?: string,
+  timeoutMs = 8000,
+): Promise<NormalizedMatch[]> {
   const token = process.env.FOOTBALL_DATA_TOKEN;
   if (!token) {
     throw new Error(
@@ -93,8 +148,9 @@ export async function fetchMatches(stage?: string): Promise<NormalizedMatch[]> {
 
   const res = await fetch(url, {
     headers: { "X-Auth-Token": token },
-    // Always fetch fresh data when an admin syncs.
+    // Always fetch fresh data when syncing.
     cache: "no-store",
+    signal: AbortSignal.timeout(timeoutMs),
   });
 
   if (!res.ok) {
@@ -105,20 +161,5 @@ export async function fetchMatches(stage?: string): Promise<NormalizedMatch[]> {
   }
 
   const data = (await res.json()) as { matches?: RawMatch[] };
-  const matches = data.matches ?? [];
-
-  return matches.map((m) => ({
-    externalId: String(m.id),
-    stage: m.stage,
-    isKnockout: m.stage !== "GROUP_STAGE",
-    homeTeam: m.homeTeam?.name ?? "TBD",
-    awayTeam: m.awayTeam?.name ?? "TBD",
-    homeCrest: m.homeTeam?.crest ?? null,
-    awayCrest: m.awayTeam?.crest ?? null,
-    kickoff: new Date(m.utcDate),
-    status: mapStatus(m.status),
-    homeScore: m.score?.fullTime?.home ?? null,
-    awayScore: m.score?.fullTime?.away ?? null,
-    qualifier: mapQualifier(m.score?.winner),
-  }));
+  return (data.matches ?? []).map(normalizeMatch);
 }

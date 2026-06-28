@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { fetchMatches, STAGE_BY_ROUND } from "@/lib/footballData";
+import { STAGE_BY_ROUND } from "@/lib/footballData";
+import { syncCompetition } from "@/lib/sync";
 
 function adminPath(code: string, params: Record<string, string>) {
   const qs = new URLSearchParams(params).toString();
@@ -39,36 +40,10 @@ export async function syncFromApi(formData: FormData) {
   const code = String(formData.get("code"));
   const token = String(formData.get("token"));
   const competition = await requireAdmin(code, token);
-  const stage = STAGE_BY_ROUND[competition.round];
 
   let synced = 0;
   try {
-    const matches = await fetchMatches(stage);
-    for (const m of matches) {
-      await prisma.match.upsert({
-        where: {
-          competitionId_externalId: {
-            competitionId: competition.id,
-            externalId: m.externalId,
-          },
-        },
-        create: { competitionId: competition.id, ...m },
-        update: {
-          stage: m.stage,
-          isKnockout: m.isKnockout,
-          homeTeam: m.homeTeam,
-          awayTeam: m.awayTeam,
-          homeCrest: m.homeCrest,
-          awayCrest: m.awayCrest,
-          kickoff: m.kickoff,
-          status: m.status,
-          homeScore: m.homeScore,
-          awayScore: m.awayScore,
-          qualifier: m.qualifier,
-        },
-      });
-      synced++;
-    }
+    synced = await syncCompetition(competition);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Sync failed.";
     redirect(adminPath(code, { token, error: message }));
@@ -121,15 +96,29 @@ export async function setResult(formData: FormData) {
     | "SCHEDULED"
     | "IN_PLAY"
     | "FINISHED";
-  const homeRaw = String(formData.get("homeScore") ?? "");
-  const awayRaw = String(formData.get("awayScore") ?? "");
   const rawQualifier = String(formData.get("qualifier") ?? "");
+  const rawDecidedBy = String(formData.get("decidedBy") ?? "");
 
-  // Scores only apply once a result is being recorded.
-  const homeScore = homeRaw === "" ? null : Math.max(0, parseInt(homeRaw, 10) || 0);
-  const awayScore = awayRaw === "" ? null : Math.max(0, parseInt(awayRaw, 10) || 0);
+  const toScore = (v: FormDataEntryValue | null) => {
+    const s = String(v ?? "");
+    return s === "" ? null : Math.max(0, parseInt(s, 10) || 0);
+  };
+  const homeScore = toScore(formData.get("homeScore"));
+  const awayScore = toScore(formData.get("awayScore"));
+  let finalHomeScore = toScore(formData.get("finalHomeScore"));
+  let finalAwayScore = toScore(formData.get("finalAwayScore"));
+
   const qualifier =
     rawQualifier === "HOME" || rawQualifier === "AWAY" ? rawQualifier : null;
+  const decidedBy = ["REGULAR", "EXTRA_TIME", "PENALTIES"].includes(rawDecidedBy)
+    ? rawDecidedBy
+    : null;
+
+  // For a match decided in normal time, the final score is the 90-minute score.
+  if (decidedBy === "REGULAR" || decidedBy === null) {
+    finalHomeScore = finalHomeScore ?? homeScore;
+    finalAwayScore = finalAwayScore ?? awayScore;
+  }
 
   if (status === "FINISHED" && (homeScore === null || awayScore === null)) {
     redirect(
@@ -142,7 +131,15 @@ export async function setResult(formData: FormData) {
 
   await prisma.match.update({
     where: { id: match!.id },
-    data: { status, homeScore, awayScore, qualifier },
+    data: {
+      status,
+      homeScore,
+      awayScore,
+      finalHomeScore,
+      finalAwayScore,
+      decidedBy,
+      qualifier,
+    },
   });
   revalidatePath(`/c/${code}`);
   redirect(adminPath(code, { token, msg: "Result saved." }));

@@ -12,10 +12,12 @@ datasource db {
 model Competition {
   id         String   @id @default(cuid())
   name       String
-  joinCode   String   @unique
-  adminToken String   @unique @default(cuid())
-  round      String   @default("Round of 32")
-  createdAt  DateTime @default(now())
+  joinCode     String    @unique
+  adminToken   String    @unique @default(cuid())
+  round        String    @default("Round of 32")
+  createdAt    DateTime  @default(now())
+  // When live data was last pulled for this competition (throttles auto-sync).
+  lastSyncedAt DateTime?
 
   players Player[]
   matches Match[]
@@ -59,9 +61,15 @@ model Match {
   kickoff       DateTime
   status        MatchStatus @default(SCHEDULED)
 
-  // Result, after 90 minutes (regular time).
+  // Result after 90 minutes (regular time). This is what scoring uses for the
+  // exact-score and goal-difference points.
   homeScore Int?
   awayScore Int?
+  // Final result including extra time / penalties — for display only.
+  finalHomeScore Int?
+  finalAwayScore Int?
+  // How the tie was settled: "REGULAR" | "EXTRA_TIME" | "PENALTIES".
+  decidedBy String?
   // Which side ultimately qualified / advanced (may be decided on penalties).
   qualifier String? // "HOME" | "AWAY"
 

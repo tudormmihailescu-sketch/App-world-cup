@@ -85,11 +85,38 @@ to be set (Vercel Postgres provides it).
 > generate a migration, commit it, and push — Vercel applies it on the next
 > deploy.
 
+## Automatic syncing & the leaderboard
+
+The leaderboard is **never stored** — it's recomputed from match results on every
+page view, so the instant a result lands, everyone's points update.
+
+Results are pulled in automatically (when `FOOTBALL_DATA_TOKEN` is set) two ways:
+
+1. **View-triggered.** When someone opens a competition and its data is older
+   than ~2 minutes, the app refreshes that competition's scores before
+   rendering. This makes match days feel live with no setup — the people
+   refreshing to watch the table *are* the trigger.
+2. **Scheduled (cron).** `vercel.json` defines a daily cron that hits
+   `/api/cron/sync` and refreshes every competition. On Vercel's free Hobby
+   plan, crons are limited to once per day — that's fine as a backstop because
+   the view-triggered refresh covers live matches. To sync on a fixed schedule
+   more often (e.g. every 15 min during the tournament), upgrade to Vercel Pro
+   and change the `schedule` in `vercel.json`, or point any external scheduler
+   at `GET /api/cron/sync`.
+
+### 90-minute vs final score
+
+Scoring is defined on the **90-minute** result. The app reads
+`score.regularTime` from football-data.org for that, and `score.fullTime` for
+the **final** score (incl. extra time / penalties) which is shown for context
+— e.g. *"Result 1–1 · pens 4–5 · Poland advance"*. The qualifier point uses who
+actually advanced. If you ever enter results by hand, the admin screen has
+separate fields for the 90-minute score, the final score, and how the tie was
+decided.
+
 ## Live data notes
 
 - The free football-data.org tier exposes a limited set of competitions and is
   rate-limited (~10 requests/minute). The World Cup competition code is `WC`.
-- Knockout scores from the API may include extra time. The app stores whatever
-  the API reports as the "full time" score; **always double-check the
-  90-minute score in the admin screen** and correct it if a match went to extra
-  time, since scoring is defined on the 90-minute result.
+- The optional `CRON_SECRET` protects the sync endpoint. Set it in Vercel and
+  the platform's cron will send it automatically.

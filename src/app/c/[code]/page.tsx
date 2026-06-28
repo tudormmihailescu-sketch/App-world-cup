@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentPlayer } from "@/lib/session";
 import { normalizeJoinCode } from "@/lib/codes";
 import { hasResult, scorePrediction, type Side } from "@/lib/scoring";
+import { isFootballDataConfigured } from "@/lib/footballData";
+import { isSyncStale, syncCompetition } from "@/lib/sync";
 import JoinForm from "./JoinForm";
 import PredictionForm, { type MatchView } from "./PredictionForm";
 import Leaderboard, { type StandingRow } from "./Leaderboard";
@@ -18,6 +20,23 @@ export default async function CompetitionPage({
   searchParams: { error?: string };
 }) {
   const code = normalizeJoinCode(params.code);
+
+  // Opportunistic live refresh: if this competition's data is stale and a data
+  // source is configured, pull the latest scores before rendering. Bounded by a
+  // short timeout (and swallowed on error) so a slow API never blocks the page.
+  if (isFootballDataConfigured()) {
+    const lite = await prisma.competition.findUnique({
+      where: { joinCode: code },
+      select: { id: true, round: true, lastSyncedAt: true },
+    });
+    if (lite && isSyncStale(lite.lastSyncedAt)) {
+      await Promise.race([
+        syncCompetition(lite).catch(() => {}),
+        new Promise((resolve) => setTimeout(resolve, 4000)),
+      ]);
+    }
+  }
+
   const competition = await prisma.competition.findUnique({
     where: { joinCode: code },
     include: {
@@ -144,6 +163,9 @@ export default async function CompetitionPage({
               status: m.status,
               homeScore: m.homeScore,
               awayScore: m.awayScore,
+              finalHomeScore: m.finalHomeScore,
+              finalAwayScore: m.finalAwayScore,
+              decidedBy: m.decidedBy as MatchView["decidedBy"],
               qualifier: m.qualifier as "HOME" | "AWAY" | null,
             };
             const points =

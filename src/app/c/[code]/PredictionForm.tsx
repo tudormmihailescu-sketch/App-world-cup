@@ -15,6 +15,9 @@ export interface MatchView {
   status: "SCHEDULED" | "IN_PLAY" | "FINISHED";
   homeScore: number | null;
   awayScore: number | null;
+  finalHomeScore: number | null;
+  finalAwayScore: number | null;
+  decidedBy: "REGULAR" | "EXTRA_TIME" | "PENALTIES" | null;
   qualifier: "HOME" | "AWAY" | null;
 }
 
@@ -55,6 +58,10 @@ export default function PredictionForm({
 }) {
   const kickoff = new Date(match.kickoffISO);
   const hasResult = match.homeScore !== null && match.awayScore !== null;
+  const wentBeyond90 =
+    (match.decidedBy === "EXTRA_TIME" || match.decidedBy === "PENALTIES") &&
+    match.finalHomeScore !== null &&
+    match.finalAwayScore !== null;
   const qualifierWinnerName =
     match.qualifier === "HOME"
       ? match.homeTeam
@@ -154,6 +161,13 @@ export default function PredictionForm({
               <span className="text-slate-600">
                 Result <strong>{match.homeScore}</strong>–
                 <strong>{match.awayScore}</strong>
+                {wentBeyond90 && (
+                  <span className="text-slate-400">
+                    {" "}
+                    · {match.decidedBy === "PENALTIES" ? "pens" : "AET"}{" "}
+                    {match.finalHomeScore}–{match.finalAwayScore}
+                  </span>
+                )}
                 {qualifierWinnerName && (
                   <span className="text-slate-400">
                     {" "}

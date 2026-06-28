@@ -218,6 +218,42 @@ export default async function AdminPage({
                   </select>
                 </div>
               )}
+              {m.isKnockout && (
+                <>
+                  <div>
+                    <label className="label text-xs">Decided by</label>
+                    <select
+                      name="decidedBy"
+                      defaultValue={m.decidedBy ?? "REGULAR"}
+                      className="input py-1.5"
+                    >
+                      <option value="REGULAR">90 min</option>
+                      <option value="EXTRA_TIME">Extra time</option>
+                      <option value="PENALTIES">Penalties</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label text-xs">Final (opt.)</label>
+                    <div className="flex items-center gap-1">
+                      <input
+                        name="finalHomeScore"
+                        type="number"
+                        min={0}
+                        defaultValue={m.finalHomeScore ?? ""}
+                        className="input w-14 py-1.5 text-center"
+                      />
+                      <span>:</span>
+                      <input
+                        name="finalAwayScore"
+                        type="number"
+                        min={0}
+                        defaultValue={m.finalAwayScore ?? ""}
+                        className="input w-14 py-1.5 text-center"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
               <button className="btn-primary py-1.5">Save</button>
             </form>
             <form action={deleteMatch} className="mt-2">
