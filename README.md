@@ -45,8 +45,8 @@ npm install
 cp .env.example .env
 #    (edit .env)
 
-# 2. Create the schema
-npm run prisma:push
+# 2. Create the schema (applies the committed migrations)
+npx prisma migrate dev
 
 # 3. (optional) seed a demo competition
 npm run prisma:seed
@@ -63,14 +63,27 @@ npm test
 
 ## Deploying to Vercel
 
-1. Push this repo to GitHub and import it into Vercel.
-2. Add a Postgres database (Vercel Postgres or Neon) — Vercel will set
-   `DATABASE_URL` for you.
-3. (Optional) add `FOOTBALL_DATA_TOKEN` from football-data.org for live syncing.
-4. Run `npm run prisma:push` once against the production database to create the
-   tables (e.g. locally with the production `DATABASE_URL`, or as a build step).
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/tudormmihailescu-sketch/app-world-cup&env=FOOTBALL_DATA_TOKEN&envDescription=Optional%20football-data.org%20API%20token%20for%20live%20syncing&project-name=world-cup-predictions&repository-name=world-cup-predictions)
 
-The `build` script runs `prisma generate` automatically.
+1. Push this repo to GitHub and **import it into Vercel** (or use the button
+   above).
+2. In the Vercel project, add a Postgres database from the **Storage** tab
+   (Vercel Postgres or Neon). This automatically sets `DATABASE_URL` for every
+   environment.
+3. (Optional) add `FOOTBALL_DATA_TOKEN` from
+   [football-data.org](https://www.football-data.org/client/register) under
+   **Settings → Environment Variables** to enable live syncing.
+4. Deploy. That's it — no manual database step.
+
+The `build` script runs `prisma generate && prisma migrate deploy && next build`,
+so the database tables are **created/updated automatically on every deploy** from
+the committed migrations in `prisma/migrations`. The build needs `DATABASE_URL`
+to be set (Vercel Postgres provides it).
+
+> **Note:** because schema changes are applied at build time, just edit
+> `prisma/schema.prisma`, run `npx prisma migrate dev --name <change>` locally to
+> generate a migration, commit it, and push — Vercel applies it on the next
+> deploy.
 
 ## Live data notes
 
