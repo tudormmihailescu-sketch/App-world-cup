@@ -9,6 +9,7 @@ import {
 import {
   addMatch,
   deleteMatch,
+  removePlayer,
   setResult,
   setRound,
   syncFromApi,
@@ -27,7 +28,13 @@ export default async function AdminPage({
   const token = searchParams.token ?? "";
   const competition = await prisma.competition.findUnique({
     where: { joinCode: code },
-    include: { matches: { orderBy: { kickoff: "asc" } } },
+    include: {
+      matches: { orderBy: { kickoff: "asc" } },
+      players: {
+        orderBy: { createdAt: "asc" },
+        include: { _count: { select: { predictions: true } } },
+      },
+    },
   });
   if (!competition) notFound();
   if (competition.adminToken !== token) {
@@ -144,6 +151,38 @@ export default async function AdminPage({
           </div>
           <button className="btn-secondary w-full">Add match</button>
         </form>
+      </section>
+
+      {/* Players */}
+      <section className="card space-y-3 p-5">
+        <h2 className="font-bold">Players ({competition.players.length})</h2>
+        {competition.players.length === 0 ? (
+          <p className="text-sm text-slate-400">No one has joined yet.</p>
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {competition.players.map((p) => (
+              <li key={p.id} className="flex items-center gap-3 py-2">
+                <span className="flex-1 truncate font-medium">{p.name}</span>
+                <span className="text-xs text-slate-400">
+                  {p._count.predictions}{" "}
+                  {p._count.predictions === 1 ? "pick" : "picks"}
+                </span>
+                <form action={removePlayer}>
+                  <input type="hidden" name="code" value={code} />
+                  <input type="hidden" name="token" value={token} />
+                  <input type="hidden" name="playerId" value={p.id} />
+                  <button className="text-xs text-red-500 hover:underline">
+                    Remove
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="text-xs text-slate-400">
+          Removing a player also deletes their predictions. Handy for clearing a
+          duplicate — keep the one with more picks.
+        </p>
       </section>
 
       {/* Results */}

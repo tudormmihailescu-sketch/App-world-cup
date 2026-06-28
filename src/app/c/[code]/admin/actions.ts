@@ -156,3 +156,17 @@ export async function deleteMatch(formData: FormData) {
   revalidatePath(`/c/${code}`);
   redirect(adminPath(code, { token, msg: "Match removed." }));
 }
+
+/** Remove a player and all of their predictions (e.g. a duplicate persona). */
+export async function removePlayer(formData: FormData) {
+  const code = String(formData.get("code"));
+  const token = String(formData.get("token"));
+  const playerId = String(formData.get("playerId"));
+  const competition = await requireAdmin(code, token);
+  // Predictions are removed automatically via the cascade on Player.
+  await prisma.player.deleteMany({
+    where: { id: playerId, competitionId: competition.id },
+  });
+  revalidatePath(`/c/${code}`);
+  redirect(adminPath(code, { token, msg: "Player removed." }));
+}
