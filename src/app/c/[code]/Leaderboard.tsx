@@ -6,16 +6,41 @@ export interface StandingRow {
   goalDiffs: number; // correct goal differences
   qualifiers: number; // correct qualifying teams
   isCurrent: boolean;
+  // The player's (now-locked) prediction for the live game, when one is on.
+  livePrediction: {
+    homeScore: number;
+    awayScore: number;
+    qualifier: "HOME" | "AWAY" | null;
+  } | null;
+}
+
+interface LiveMatch {
+  homeTeam: string;
+  awayTeam: string;
+  isKnockout: boolean;
 }
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
+function formatPick(row: StandingRow, live: LiveMatch): string {
+  if (!row.livePrediction) return "No prediction";
+  const { homeScore, awayScore, qualifier } = row.livePrediction;
+  const score = `${homeScore}–${awayScore}`;
+  if (live.isKnockout && qualifier) {
+    const team = qualifier === "HOME" ? live.homeTeam : live.awayTeam;
+    return `${score} · ${team}`;
+  }
+  return score;
+}
+
 export default function Leaderboard({
   rows,
   scoredMatches,
+  liveMatch,
 }: {
   rows: StandingRow[];
   scoredMatches: number;
+  liveMatch: LiveMatch | null;
 }) {
   return (
     <section className="card overflow-hidden">
@@ -31,6 +56,12 @@ export default function Leaderboard({
         <p className="mt-0.5 text-xs text-slate-400">
           Breakdown: exact scores · goal differences · correct teams
         </p>
+        {liveMatch && (
+          <p className="mt-2 text-xs font-semibold text-red-600">
+            🔴 Live: {liveMatch.homeTeam} v {liveMatch.awayTeam} — everyone’s
+            picks below
+          </p>
+        )}
       </div>
       {rows.length === 0 ? (
         <p className="px-5 py-6 text-sm text-slate-400">No players yet.</p>
@@ -57,6 +88,11 @@ export default function Leaderboard({
                   {row.exact} exact · {row.goalDiffs} goal-diff ·{" "}
                   {row.qualifiers} {row.qualifiers === 1 ? "team" : "teams"}
                 </p>
+                {liveMatch && (
+                  <p className="text-xs font-medium text-red-600">
+                    🔴 Pick: {formatPick(row, liveMatch)}
+                  </p>
+                )}
               </div>
               <span className="w-12 text-right text-lg font-bold tabular-nums">
                 {row.points}

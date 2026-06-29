@@ -54,6 +54,19 @@ export default async function CompetitionPage({
   // score has been recorded — finished or in-progress).
   const scoredMatches = competition.matches.filter((m) => hasResult(m)).length;
 
+  // The "current" live game: started (locked) but not finished. If more than
+  // one is live, take the most recently kicked-off. Its locked predictions get
+  // surfaced under each player; once nothing is live this disappears.
+  const nowMs = Date.now();
+  const liveMatch =
+    competition.matches
+      .filter(
+        (m) =>
+          m.status !== "FINISHED" &&
+          (m.status === "IN_PLAY" || m.kickoff.getTime() <= nowMs),
+      )
+      .sort((a, b) => b.kickoff.getTime() - a.kickoff.getTime())[0] ?? null;
+
   const standings: StandingRow[] = competition.players
     .map((player) => {
       let points = 0;
@@ -81,6 +94,10 @@ export default async function CompetitionPage({
         if (breakdown.goalDifference) goalDiffs++;
         if (breakdown.qualifier) qualifiers++;
       }
+      const livePred = liveMatch
+        ? player.predictions.find((p) => p.matchId === liveMatch.id)
+        : undefined;
+
       return {
         playerId: player.id,
         name: player.name,
@@ -89,6 +106,13 @@ export default async function CompetitionPage({
         goalDiffs,
         qualifiers,
         isCurrent: currentPlayer?.id === player.id,
+        livePrediction: livePred
+          ? {
+              homeScore: livePred.homeScore,
+              awayScore: livePred.awayScore,
+              qualifier: livePred.qualifier as "HOME" | "AWAY" | null,
+            }
+          : null,
       };
     })
     .sort(
@@ -125,7 +149,19 @@ export default async function CompetitionPage({
         )}
         {header}
         <JoinForm code={competition.joinCode} competitionName={competition.name} />
-        <Leaderboard rows={standings} scoredMatches={scoredMatches} />
+        <Leaderboard
+          rows={standings}
+          scoredMatches={scoredMatches}
+          liveMatch={
+            liveMatch
+              ? {
+                  homeTeam: liveMatch.homeTeam,
+                  awayTeam: liveMatch.awayTeam,
+                  isKnockout: liveMatch.isKnockout,
+                }
+              : null
+          }
+        />
       </div>
     );
   }
@@ -219,7 +255,19 @@ export default async function CompetitionPage({
         )}
       </section>
 
-      <Leaderboard rows={standings} scoredMatches={scoredMatches} />
+      <Leaderboard
+          rows={standings}
+          scoredMatches={scoredMatches}
+          liveMatch={
+            liveMatch
+              ? {
+                  homeTeam: liveMatch.homeTeam,
+                  awayTeam: liveMatch.awayTeam,
+                  isKnockout: liveMatch.isKnockout,
+                }
+              : null
+          }
+        />
     </div>
   );
 }
