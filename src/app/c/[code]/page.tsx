@@ -50,15 +50,19 @@ export default async function CompetitionPage({
 
   // --- Standings ---------------------------------------------------------
   const matchById = new Map(competition.matches.map((m) => [m.id, m]));
+  // Number of games whose results are counted in the leaderboard (a 90-minute
+  // score has been recorded — finished or in-progress).
+  const scoredMatches = competition.matches.filter((m) => hasResult(m)).length;
+
   const standings: StandingRow[] = competition.players
     .map((player) => {
       let points = 0;
       let exact = 0;
-      let scored = 0;
+      let goalDiffs = 0;
+      let qualifiers = 0;
       for (const pred of player.predictions) {
         const match = matchById.get(pred.matchId);
         if (!match || !hasResult(match)) continue;
-        scored++;
         const breakdown = scorePrediction(
           {
             homeScore: pred.homeScore,
@@ -74,17 +78,26 @@ export default async function CompetitionPage({
         );
         points += breakdown.total;
         if (breakdown.exactScore) exact++;
+        if (breakdown.goalDifference) goalDiffs++;
+        if (breakdown.qualifier) qualifiers++;
       }
       return {
         playerId: player.id,
         name: player.name,
         points,
         exact,
-        scored,
+        goalDiffs,
+        qualifiers,
         isCurrent: currentPlayer?.id === player.id,
       };
     })
-    .sort((a, b) => b.points - a.points || b.exact - a.exact || a.name.localeCompare(b.name));
+    .sort(
+      (a, b) =>
+        b.points - a.points ||
+        b.exact - a.exact ||
+        b.goalDiffs - a.goalDiffs ||
+        a.name.localeCompare(b.name),
+    );
 
   // --- Header ------------------------------------------------------------
   const header = (
@@ -112,7 +125,7 @@ export default async function CompetitionPage({
         )}
         {header}
         <JoinForm code={competition.joinCode} competitionName={competition.name} />
-        <Leaderboard rows={standings} />
+        <Leaderboard rows={standings} scoredMatches={scoredMatches} />
       </div>
     );
   }
@@ -206,7 +219,7 @@ export default async function CompetitionPage({
         )}
       </section>
 
-      <Leaderboard rows={standings} />
+      <Leaderboard rows={standings} scoredMatches={scoredMatches} />
     </div>
   );
 }
