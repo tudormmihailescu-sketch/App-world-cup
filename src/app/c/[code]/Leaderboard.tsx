@@ -1,3 +1,5 @@
+import { impliedQualifier } from "@/lib/scoring";
+
 export interface StandingRow {
   playerId: string;
   name: string;
@@ -26,9 +28,13 @@ function formatPick(row: StandingRow, live: LiveMatch): string {
   if (!row.livePrediction) return "No prediction";
   const { homeScore, awayScore, qualifier } = row.livePrediction;
   const score = `${homeScore}–${awayScore}`;
-  if (live.isKnockout && qualifier) {
-    const team = qualifier === "HOME" ? live.homeTeam : live.awayTeam;
-    return `${score} · ${team}`;
+  if (live.isKnockout) {
+    // Show the chosen team, or the one implied by a non-draw score.
+    const side = qualifier ?? impliedQualifier(homeScore, awayScore);
+    if (side) {
+      const team = side === "HOME" ? live.homeTeam : live.awayTeam;
+      return `${score} · ${team}`;
+    }
   }
   return score;
 }

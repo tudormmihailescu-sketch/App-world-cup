@@ -40,6 +40,19 @@ export const POINTS = {
 } as const;
 
 /**
+ * The winner implied by a score line: a non-draw score names a winner even if
+ * the predictor never tapped a team. A draw implies nobody.
+ */
+export function impliedQualifier(
+  homeScore: number,
+  awayScore: number,
+): Side | null {
+  if (homeScore > awayScore) return "HOME";
+  if (awayScore > homeScore) return "AWAY";
+  return null;
+}
+
+/**
  * Score a single prediction against a final result.
  *
  * @param isKnockout whether the qualifier point is in play for this match.
@@ -61,11 +74,17 @@ export function scorePrediction(
       ? POINTS.GOAL_DIFFERENCE
       : 0;
 
+  // Use the explicitly chosen team if there is one; otherwise fall back to the
+  // winner implied by the predicted (non-draw) score.
+  const predictedQualifier =
+    prediction.qualifier ??
+    impliedQualifier(prediction.homeScore, prediction.awayScore);
+
   const qualifier =
     isKnockout &&
-    !!prediction.qualifier &&
+    !!predictedQualifier &&
     !!result.qualifier &&
-    prediction.qualifier === result.qualifier
+    predictedQualifier === result.qualifier
       ? POINTS.QUALIFIER
       : 0;
 

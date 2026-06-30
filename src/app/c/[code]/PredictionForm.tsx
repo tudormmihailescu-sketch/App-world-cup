@@ -144,6 +144,10 @@ export default function PredictionForm({
                 </label>
               ))}
             </div>
+            <p className="mt-1 text-xs text-slate-400">
+              A clear winning score already counts as picking that team — only
+              choose here if you’re predicting a draw.
+            </p>
           </fieldset>
         )}
 

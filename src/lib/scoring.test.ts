@@ -71,6 +71,47 @@ describe("scorePrediction", () => {
     expect(r.total).toBe(1);
   });
 
+  it("infers the qualifier from a non-draw score when none was picked", () => {
+    // Predicted 2-1 (home win) with no explicit team; home advanced.
+    const r = scorePrediction(
+      { homeScore: 2, awayScore: 1, qualifier: null },
+      { homeScore: 2, awayScore: 1, qualifier: "HOME" },
+      true,
+    );
+    expect(r.qualifier).toBe(2);
+    expect(r.total).toBe(4);
+  });
+
+  it("does not award an inferred qualifier when the implied winner is wrong", () => {
+    // Predicted a home win (no team picked); away actually advanced.
+    const r = scorePrediction(
+      { homeScore: 3, awayScore: 1, qualifier: null },
+      { homeScore: 1, awayScore: 2, qualifier: "AWAY" },
+      true,
+    );
+    expect(r.qualifier).toBe(0);
+  });
+
+  it("cannot infer a qualifier from a predicted draw with no team picked", () => {
+    const r = scorePrediction(
+      { homeScore: 1, awayScore: 1, qualifier: null },
+      { homeScore: 1, awayScore: 1, qualifier: "AWAY" },
+      true,
+    );
+    expect(r.qualifier).toBe(0);
+    expect(r.total).toBe(2); // exact + GD only
+  });
+
+  it("lets an explicit pick override the score-implied winner", () => {
+    // Predicted 2-1 (implies HOME) but explicitly picked AWAY to go through.
+    const r = scorePrediction(
+      { homeScore: 2, awayScore: 1, qualifier: "AWAY" },
+      { homeScore: 2, awayScore: 1, qualifier: "AWAY" },
+      true,
+    );
+    expect(r.qualifier).toBe(2);
+  });
+
   it("handles a completely wrong prediction as zero", () => {
     const r = scorePrediction(
       { homeScore: 3, awayScore: 0, qualifier: "HOME" },
