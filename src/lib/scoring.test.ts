@@ -102,6 +102,37 @@ describe("scorePrediction", () => {
     expect(r.total).toBe(2); // exact + GD only
   });
 
+  it("infers the actual winner from a decisive result when 'advances' is blank", () => {
+    // Result recorded as 2-0 with no advancing team set; predictor picked HOME.
+    const r = scorePrediction(
+      { homeScore: 2, awayScore: 0, qualifier: "HOME" },
+      { homeScore: 2, awayScore: 0, qualifier: null },
+      true,
+    );
+    expect(r.qualifier).toBe(2);
+    expect(r.total).toBe(4);
+  });
+
+  it("awards the team point off the result score even without either team set", () => {
+    // Neither side tapped a team; both scores are decisive and agree on winner.
+    const r = scorePrediction(
+      { homeScore: 1, awayScore: 0, qualifier: null },
+      { homeScore: 3, awayScore: 1, qualifier: null },
+      true,
+    );
+    expect(r.qualifier).toBe(2); // both imply HOME
+  });
+
+  it("cannot infer the actual winner from a drawn result (needs recording)", () => {
+    // 1-1 result with no advancing team recorded — went to penalties, unknown.
+    const r = scorePrediction(
+      { homeScore: 1, awayScore: 1, qualifier: "AWAY" },
+      { homeScore: 1, awayScore: 1, qualifier: null },
+      true,
+    );
+    expect(r.qualifier).toBe(0);
+  });
+
   it("lets an explicit pick override the score-implied winner", () => {
     // Predicted 2-1 (implies HOME) but explicitly picked AWAY to go through.
     const r = scorePrediction(

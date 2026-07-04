@@ -1,7 +1,7 @@
 "use client";
 
 import { submitPrediction } from "./actions";
-import type { ScoreBreakdown } from "@/lib/scoring";
+import { impliedQualifier, type ScoreBreakdown } from "@/lib/scoring";
 
 export interface MatchView {
   id: string;
@@ -62,10 +62,17 @@ export default function PredictionForm({
     (match.decidedBy === "EXTRA_TIME" || match.decidedBy === "PENALTIES") &&
     match.finalHomeScore !== null &&
     match.finalAwayScore !== null;
+  // The advancing team: the one recorded, or — for a decisive 90' result — the
+  // one implied by the score.
+  const winnerSide =
+    hasResult && match.isKnockout
+      ? (match.qualifier ??
+        impliedQualifier(match.homeScore!, match.awayScore!))
+      : null;
   const qualifierWinnerName =
-    match.qualifier === "HOME"
+    winnerSide === "HOME"
       ? match.homeTeam
-      : match.qualifier === "AWAY"
+      : winnerSide === "AWAY"
         ? match.awayTeam
         : null;
 

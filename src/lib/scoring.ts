@@ -74,17 +74,22 @@ export function scorePrediction(
       ? POINTS.GOAL_DIFFERENCE
       : 0;
 
-  // Use the explicitly chosen team if there is one; otherwise fall back to the
-  // winner implied by the predicted (non-draw) score.
+  // On both sides, use the explicitly chosen team if there is one; otherwise
+  // fall back to the winner implied by the (non-draw) 90-minute score. A
+  // decisive knockout result names its winner even if "advances" was never set;
+  // a 90-minute draw (settled in extra time / on penalties) does not, so the
+  // actual advancing team must be recorded for those.
   const predictedQualifier =
     prediction.qualifier ??
     impliedQualifier(prediction.homeScore, prediction.awayScore);
+  const actualQualifier =
+    result.qualifier ?? impliedQualifier(result.homeScore, result.awayScore);
 
   const qualifier =
     isKnockout &&
     !!predictedQualifier &&
-    !!result.qualifier &&
-    predictedQualifier === result.qualifier
+    !!actualQualifier &&
+    predictedQualifier === actualQualifier
       ? POINTS.QUALIFIER
       : 0;
 
