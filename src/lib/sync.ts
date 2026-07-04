@@ -24,32 +24,49 @@ export function isSyncStale(lastSyncedAt: Date | null | undefined): boolean {
 }
 
 /** Upsert a set of fetched matches into one competition. Returns the count. */
-async function applyMatches(
+export async function applyMatches(
   competitionId: string,
   matches: NormalizedMatch[],
 ): Promise<number> {
   for (const m of matches) {
-    await prisma.match.upsert({
+    const existing = await prisma.match.findUnique({
       where: {
         competitionId_externalId: { competitionId, externalId: m.externalId },
       },
-      create: { competitionId, ...m },
-      update: {
-        stage: m.stage,
-        isKnockout: m.isKnockout,
-        homeTeam: m.homeTeam,
-        awayTeam: m.awayTeam,
-        homeCrest: m.homeCrest,
-        awayCrest: m.awayCrest,
-        kickoff: m.kickoff,
-        status: m.status,
-        homeScore: m.homeScore,
-        awayScore: m.awayScore,
-        finalHomeScore: m.finalHomeScore,
-        finalAwayScore: m.finalAwayScore,
-        decidedBy: m.decidedBy,
-        qualifier: m.qualifier,
-      },
+      select: { id: true, manualResult: true },
+    });
+
+    if (!existing) {
+      await prisma.match.create({ data: { competitionId, ...m } });
+      continue;
+    }
+
+    // Always keep descriptive fields fresh (team names, crests, kickoff).
+    const descriptive = {
+      stage: m.stage,
+      isKnockout: m.isKnockout,
+      homeTeam: m.homeTeam,
+      awayTeam: m.awayTeam,
+      homeCrest: m.homeCrest,
+      awayCrest: m.awayCrest,
+      kickoff: m.kickoff,
+    };
+
+    await prisma.match.update({
+      where: { id: existing.id },
+      // A hand-finalised result is authoritative — never overwrite it.
+      data: existing.manualResult
+        ? descriptive
+        : {
+            ...descriptive,
+            status: m.status,
+            homeScore: m.homeScore,
+            awayScore: m.awayScore,
+            finalHomeScore: m.finalHomeScore,
+            finalAwayScore: m.finalAwayScore,
+            decidedBy: m.decidedBy,
+            qualifier: m.qualifier,
+          },
     });
   }
   return matches.length;

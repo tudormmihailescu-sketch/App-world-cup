@@ -151,6 +151,9 @@ export async function setResult(formData: FormData) {
       finalAwayScore,
       decidedBy,
       qualifier,
+      // Once finalised by hand, protect it from being overwritten by live sync.
+      // Re-opening a match (not finished) hands control back to sync.
+      manualResult: status === "FINISHED",
     },
   });
   revalidatePath(`/c/${code}`);

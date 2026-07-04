@@ -81,6 +81,9 @@ model Match {
   decidedBy String?
   // Which side ultimately qualified / advanced (may be decided on penalties).
   qualifier String? // "HOME" | "AWAY"
+  // True once an organiser has finalised the result by hand. Live sync then
+  // leaves the result alone so it can't overwrite a manual correction.
+  manualResult Boolean @default(false)
 
   predictions Prediction[]
 
