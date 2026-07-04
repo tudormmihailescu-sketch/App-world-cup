@@ -5,18 +5,30 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { STAGE_BY_ROUND } from "@/lib/footballData";
 import { syncCompetition } from "@/lib/sync";
+import { generateJoinCode } from "@/lib/codes";
+import { rootIdOf } from "@/lib/rounds";
 
 function adminPath(code: string, params: Record<string, string>) {
   const qs = new URLSearchParams(params).toString();
   return `/c/${code}/admin?${qs}`;
 }
 
-/** Load a competition only if the admin token matches; otherwise 404 home. */
+/**
+ * Load a round only if the token matches the group's admin token (the root
+ * round's token, shared across all rounds). Otherwise bounce home.
+ */
 async function requireAdmin(code: string, token: string) {
   const competition = await prisma.competition.findUnique({
     where: { joinCode: code },
   });
-  if (!competition || competition.adminToken !== token) {
+  if (!competition) {
+    redirect("/?error=" + encodeURIComponent("Invalid admin link."));
+  }
+  const root = await prisma.competition.findUnique({
+    where: { id: rootIdOf(competition!) },
+    select: { adminToken: true },
+  });
+  if (!root || root.adminToken !== token) {
     redirect("/?error=" + encodeURIComponent("Invalid admin link."));
   }
   return competition!;
@@ -155,6 +167,40 @@ export async function deleteMatch(formData: FormData) {
   });
   revalidatePath(`/c/${code}`);
   redirect(adminPath(code, { token, msg: "Match removed." }));
+}
+
+/**
+ * Add a new round to the group (e.g. Round of 16). It's a fresh, separate
+ * leaderboard — no players or points carry over — reachable via the tabs and
+ * managed with the same admin token.
+ */
+export async function addRound(formData: FormData) {
+  const code = String(formData.get("code"));
+  const token = String(formData.get("token"));
+  const round = String(formData.get("round") ?? "").trim() || "Round of 16";
+  const competition = await requireAdmin(code, token);
+  const rootId = rootIdOf(competition);
+
+  const root = await prisma.competition.findUnique({ where: { id: rootId } });
+
+  // Don't create the same round twice in one group.
+  const existing = await prisma.competition.findFirst({
+    where: { round, OR: [{ id: rootId }, { parentId: rootId }] },
+  });
+  if (existing) {
+    redirect(adminPath(existing.joinCode, { token, msg: `${round} already exists.` }));
+  }
+
+  let joinCode = generateJoinCode();
+  for (let i = 0; i < 5; i++) {
+    if (!(await prisma.competition.findUnique({ where: { joinCode } }))) break;
+    joinCode = generateJoinCode();
+  }
+
+  const created = await prisma.competition.create({
+    data: { name: root!.name, round, joinCode, parentId: rootId },
+  });
+  redirect(adminPath(created.joinCode, { token, msg: `${round} added.` }));
 }
 
 /** Remove a player and all of their predictions (e.g. a duplicate persona). */

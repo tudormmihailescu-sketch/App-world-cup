@@ -8,12 +8,15 @@ import {
 } from "@/lib/footballData";
 import {
   addMatch,
+  addRound,
   deleteMatch,
   removePlayer,
   setResult,
   setRound,
   syncFromApi,
 } from "./actions";
+import RoundTabs from "../RoundTabs";
+import { getGroupRounds, rootIdOf } from "@/lib/rounds";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +40,13 @@ export default async function AdminPage({
     },
   });
   if (!competition) notFound();
-  if (competition.adminToken !== token) {
+
+  // The whole group is managed with the root round's admin token.
+  const root = await prisma.competition.findUnique({
+    where: { id: rootIdOf(competition) },
+    select: { adminToken: true },
+  });
+  if (!root || root.adminToken !== token) {
     return (
       <div className="card p-6">
         <h1 className="text-lg font-bold">Admin access required</h1>
@@ -54,6 +63,7 @@ export default async function AdminPage({
   }
 
   const apiConfigured = isFootballDataConfigured();
+  const groupRounds = await getGroupRounds(competition);
 
   return (
     <div className="space-y-6">
@@ -63,6 +73,8 @@ export default async function AdminPage({
           View as player →
         </Link>
       </div>
+
+      <RoundTabs rounds={groupRounds} currentCode={code} adminToken={token} />
 
       {searchParams.msg && (
         <p className="rounded-xl bg-green-50 px-4 py-3 text-sm text-green-700">
@@ -88,6 +100,36 @@ export default async function AdminPage({
           Bookmark this admin page — it’s the only way back in to manage the
           competition.
         </p>
+      </section>
+
+      {/* Rounds */}
+      <section className="card space-y-3 p-5">
+        <h2 className="font-bold">Rounds ({groupRounds.length})</h2>
+        <p className="text-sm text-slate-500">
+          Each round is its own leaderboard — players and points don’t carry
+          over, and anyone can join a new round. Switch between rounds with the
+          tabs above.
+        </p>
+        <form action={addRound} className="flex items-end gap-3">
+          <input type="hidden" name="code" value={code} />
+          <input type="hidden" name="token" value={token} />
+          <div className="flex-1">
+            <label className="label" htmlFor="newRound">
+              Start a new round
+            </label>
+            <select
+              id="newRound"
+              name="round"
+              className="input"
+              defaultValue="Round of 16"
+            >
+              {ROUND_OPTIONS.map((r) => (
+                <option key={r}>{r}</option>
+              ))}
+            </select>
+          </div>
+          <button className="btn-secondary">Add round</button>
+        </form>
       </section>
 
       {/* Round + sync */}

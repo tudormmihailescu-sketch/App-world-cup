@@ -9,6 +9,8 @@ import JoinForm from "./JoinForm";
 import PredictionForm, { type MatchView } from "./PredictionForm";
 import Leaderboard, { type StandingRow } from "./Leaderboard";
 import ShareCode from "./ShareCode";
+import RoundTabs from "./RoundTabs";
+import { getGroupRounds } from "@/lib/rounds";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +49,11 @@ export default async function CompetitionPage({
   if (!competition) notFound();
 
   const currentPlayer = await getCurrentPlayer(competition.id);
+
+  const groupRounds = await getGroupRounds(competition);
+  const roundTabs = (
+    <RoundTabs rounds={groupRounds} currentCode={competition.joinCode} />
+  );
 
   // --- Standings ---------------------------------------------------------
   const matchById = new Map(competition.matches.map((m) => [m.id, m]));
@@ -147,6 +154,7 @@ export default async function CompetitionPage({
             {searchParams.error}
           </p>
         )}
+        {roundTabs}
         {header}
         <JoinForm code={competition.joinCode} competitionName={competition.name} />
         <Leaderboard
@@ -181,6 +189,7 @@ export default async function CompetitionPage({
           {searchParams.error}
         </p>
       )}
+      {roundTabs}
       {header}
 
       <section className="space-y-3">

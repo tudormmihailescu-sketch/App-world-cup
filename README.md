@@ -31,6 +31,10 @@ them) are worth up to 2 points — no qualifier bonus.
   anything), the organiser enters matches and 90-minute scores by hand.
 - **Predictions lock at kickoff.** Once a match starts, predictions for it can
   no longer be changed.
+- **One tab per round.** The organiser can start a new round (Round of 16,
+  quarter-finals, …) from the admin screen. Each round is its own leaderboard —
+  players and points don't carry over and anyone can join a new round — and the
+  rounds appear as tabs at the top. The whole group shares one admin link.
 
 ## Tech
 

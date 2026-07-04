@@ -7,8 +7,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// A competition is a private group of friends. Friends join with `joinCode`
-/// and the creator manages it with the secret `adminToken`.
+/// A competition is one round of predictions (e.g. Round of 16) with its own
+/// players, predictions and leaderboard. Rounds are linked into a group via
+/// `parentId`: the first round is the group root (parentId null) and later
+/// rounds point at it. The whole group shares the root's `adminToken`.
 model Competition {
   id         String   @id @default(cuid())
   name       String
@@ -19,8 +21,15 @@ model Competition {
   // When live data was last pulled for this competition (throttles auto-sync).
   lastSyncedAt DateTime?
 
+  // Group link: null for the first round, otherwise the root round's id.
+  parentId String?
+  parent   Competition?  @relation("Rounds", fields: [parentId], references: [id], onDelete: Cascade)
+  rounds   Competition[] @relation("Rounds")
+
   players Player[]
   matches Match[]
+
+  @@index([parentId])
 }
 
 /// A player is an identity scoped to a single competition. There is no
