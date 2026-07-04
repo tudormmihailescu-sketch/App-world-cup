@@ -157,6 +157,7 @@ export default async function CompetitionPage({
         {roundTabs}
         {header}
         <JoinForm code={competition.joinCode} competitionName={competition.name} />
+        {roundTabs}
         <Leaderboard
           rows={standings}
           scoredMatches={scoredMatches}
@@ -263,6 +264,8 @@ export default async function CompetitionPage({
           })
         )}
       </section>
+
+      {roundTabs}
 
       <Leaderboard
           rows={standings}

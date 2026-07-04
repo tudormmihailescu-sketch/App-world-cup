@@ -14,10 +14,13 @@ export default function RoundTabs({
   currentCode: string;
   adminToken?: string;
 }) {
-  if (rounds.length < 2) return null;
+  if (rounds.length === 0) return null;
 
   return (
-    <nav className="flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
+    <nav className="flex items-center gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
+      <span className="shrink-0 pl-2 pr-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
+        Rounds
+      </span>
       {rounds.map((r) => {
         const href = adminToken
           ? `/c/${r.joinCode}/admin?token=${adminToken}`
