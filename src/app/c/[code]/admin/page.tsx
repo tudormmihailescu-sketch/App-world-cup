@@ -121,7 +121,7 @@ export default async function AdminPage({
               id="newRound"
               name="round"
               className="input"
-              defaultValue="Round of 16"
+              defaultValue="Round of 8"
             >
               {ROUND_OPTIONS.map((r) => (
                 <option key={r}>{r}</option>

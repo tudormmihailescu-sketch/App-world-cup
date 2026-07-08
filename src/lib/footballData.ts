@@ -36,7 +36,7 @@ export const STAGE_BY_ROUND: Record<string, string> = {
   "Group stage": "GROUP_STAGE",
   "Round of 32": "LAST_32",
   "Round of 16": "LAST_16",
-  "Quarter-finals": "QUARTER_FINALS",
+  "Round of 8": "QUARTER_FINALS",
   "Semi-finals": "SEMI_FINALS",
   "Third-place play-off": "THIRD_PLACE",
   Final: "FINAL",
